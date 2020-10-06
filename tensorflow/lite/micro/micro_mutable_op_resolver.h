@@ -393,6 +393,13 @@ class MicroMutableOpResolver : public MicroOpResolver {
                       ParseSvdf);
   }
 
+  TfLiteStatus AddTranspose() {
+    return AddBuiltin(BuiltinOperator_TRANSPOSE, tflite::ops::micro::Register_TRANSPOSE(),
+                      ParseTranspose);
+  }
+
+  
+
   TfLiteStatus AddTanh() {
     return AddBuiltin(BuiltinOperator_TANH, tflite::ops::micro::Register_TANH(),
                       ParseTanh);
