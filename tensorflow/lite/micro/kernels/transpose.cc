@@ -53,11 +53,7 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
     TF_LITE_ENSURE_TYPES_EQ(context, op_context.input->type,
                             op_context.output->type);
 
-    if (!IsConstantTensor(op_context.perm)) {
-        SetTensorToDynamic(op_context.output);
-        return kTfLiteOk;
-    }
-    return ResizeOutputTensor(context, &op_context);
+    return kTfLiteOk;
 }
 
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
@@ -79,10 +75,22 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 
   // TODO implement TRANSPOSE op
 
+  return kTfLiteOk;
 }
 
+} // namespace transpose
 
+TfLiteRegistration Register_TRANSPOSE() {
+  return {/*init=*/nullptr,
+          /*free=*/nullptr,
+          /*prepare=*/transpose::Prepare,
+          /*invoke=*/transpose::Eval,
+          /*profiling_string=*/nullptr,
+          /*builtin_code=*/0,
+          /*custom_name=*/nullptr,
+          /*version=*/0};
 }
-}
-}
-}
+
+} // namespace micro
+} // namespace ops
+} // namespace tflite

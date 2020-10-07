@@ -38,6 +38,68 @@ namespace tflite {
 namespace testing {
 namespace {
 
+template <typename T = float>
+void ValidateTransposeGoldens(TfLiteTensor* tensors, int tensors_size, TfLiteIntArray* inputs_array,
+    TfLiteIntArray* outputs_array, const T* expected_output,
+    const size_t expected_output_len, const int* expected_dims,
+    const size_t expected_dims_len, bool expect_failure) {
+
+  const TfLiteRegistration registration =
+      tflite::ops::micro::Register_TRANSPOSE();
+
+  micro::KernelRunner runner(registration, tensors, tensors_size, inputs_array,
+                             outputs_array,
+                             /*builtin_data=*/nullptr, micro_test::reporter);
+
+  if (expect_failure) {
+    TF_LITE_MICRO_EXPECT_NE(kTfLiteOk, runner.InitAndPrepare());
+    return;
+  }
+
+  TF_LITE_MICRO_EXPECT_EQ(kTfLiteOk, runner.InitAndPrepare());
+  TF_LITE_MICRO_EXPECT_EQ(kTfLiteOk, runner.Invoke());
+
+  TfLiteTensor* output_tensor = &tensors[outputs_array->data[0]];
+  const T* output_data = GetTensorData<T>(output_tensor);
+  for (size_t i = 0; i < expected_output_len; ++i) {
+    TF_LITE_MICRO_EXPECT_NEAR(expected_output[i], output_data[i], 1e-5f);
+  }
+  TF_LITE_MICRO_EXPECT_EQ(expected_dims_len,
+                          static_cast<size_t>(output_tensor->dims->size));
+  for (size_t i = 0; i < expected_dims_len; ++i) {
+    TF_LITE_MICRO_EXPECT_EQ(expected_dims[i], output_tensor->dims->data[i]);
+  }
+}
+
+template <typename T = float>
+void TestTransposeWithShape(TfLiteTensor* input_tensor, 
+                    TfLiteTensor* perm_tensor, 
+                    TfLiteTensor* output_tensor, 
+                    const T* expected_output,
+                    const size_t expected_output_len,
+                    const int* expected_dims,
+                    const size_t expected_dims_len, 
+                    bool expect_failure) {
+
+  constexpr int inputs_size = 2;
+  constexpr int outputs_size = 1;
+  constexpr int tensors_size = inputs_size + outputs_size;
+  TfLiteTensor tensors[tensors_size];
+  tensors[0] = *input_tensor;
+  tensors[1] = *perm_tensor;
+  tensors[2] = *output_tensor;
+
+  int inputs_data[] = {2, 0, 1};
+  TfLiteIntArray* inputs_array = IntArrayFromInts(inputs_data);
+  int outputs_data[] = {1, 2};
+  TfLiteIntArray* outputs_array = IntArrayFromInts(outputs_data);
+
+  ValidateTransposeGoldens(tensors, tensors_size, inputs_array, outputs_array,
+                         expected_output, expected_output_len, expected_dims,
+                         expected_dims_len, expect_failure);
+
+}
+
 template <typename T = float, TfLiteType tensor_type = kTfLiteFloat32>
 void TestTranspose(const int* input_dims_data, const T* input_data,
                    const int* perm_dims_data, const int32_t* perm_data,
@@ -57,58 +119,9 @@ void TestTranspose(const int* input_dims_data, const T* input_data,
   TfLiteTensor output_tensor =
       CreateTensor<T, tensor_type>(output_data, output_dims);
 
-  // Inputs contains both input tensor and perm tensor
-  constexpr int inputs_size = 2;
-  constexpr int outputs_size = 1;
-  constexpr int tensors_size = inputs_size + outputs_size;
-  
-  // Create generic TfLiteTensor as a hold all wrapper containing 
-  // the tensors
-  TfLiteTensor tensors[tensors_size];
-  tensors[0] = *input_tensor;
-  tensors[1] = *perm_tensor;
-  tensors[2] = *output_tensor;
-
-  // Describe the Inputs and Outputs so that the interpretter 
-  // acquires the correct respective tensor 
-  int inputs_data[] = {2, 0, 1};
-  TfLiteIntArray* inputs_array = IntArrayFromInts(inputs_data);
-  int outputs_data[] = {1, 2};
-  TfLiteIntArray* outputs_array = IntArrayFromInts(outputs_data);
-
-  // Register the Transpose operation
-  const TfLiteRegistration registration =
-      tflite::ops::micro::Register_TRANSPOSE();
-
-  micro::KernelRunner runner(registration, tensors, tensors_size, inputs_array,
-                             outputs_array,
-                             /*builtin_data=*/nullptr, micro_test::reporter);
-
-  if (expect_failure) {
-    TF_LITE_MICRO_EXPECT_NE(kTfLiteOk, runner.InitAndPrepare());
-    return;
-  }
-
-  TF_LITE_MICRO_EXPECT_EQ(kTfLiteOk, runner.InitAndPrepare());
-  TF_LITE_MICRO_EXPECT_EQ(kTfLiteOk, runner.Invoke());
-
-  TfLiteTensor* output_tensor = &tensors[outputs_array->data[0]];
-
-  const T* output_data = GetTensorData<T>(output_tensor);
-  
-  // Ensure that the data is matching the expected data array content
-  for (size_t i = 0; i < expected_output_len; ++i) {
-    TF_LITE_MICRO_EXPECT_NEAR(expected_output[i], output_data[i], 1e-5f);
-  }
-
-  // Ensure the number of dimensions is as expected
-  TF_LITE_MICRO_EXPECT_EQ(expected_dims_len,
-                          static_cast<size_t>(output_tensor->dims->size));
-  
-  // Evaluate the shape to ensure the dimensions are as expected
-  for (size_t i = 0; i < expected_dims_len; ++i) {
-    TF_LITE_MICRO_EXPECT_EQ(expected_dims[i], output_tensor->dims->data[i]);
-  }
+  TestTransposeWithShape(&input_tensor, &perm_tensor, &output_tensor,
+                          expected_output, expected_output_len, expected_dims,
+                          expected_dims_len, expect_failure);
 
 }
 
@@ -131,23 +144,23 @@ TF_LITE_MICRO_TEST(TransposeBasic1DIdentityShouldSucceed) {
   int8_t output_data_int8[32];
   uint8_t output_data_uint8[32];
 
-  const int input_dims[] = { 1, 1 };
-  const float input_float[] = { 3 };
-  const int8_t input_int8[] = { 3 };
-  const uint8_t input_uint8[] = { 3 };
+  const int input_dims[] = { 3 };
+  const float input_float[] = { 0, 1, 2 };
+  const int8_t input_int8[] = { 0, 1, 2 };
+  const uint8_t input_uint8[] = { 0, 1, 2 };
 
-  const int perm_dims[] = { 1, 1 };
+  const int perm_dims[] = { 1 };
   const int32_t perm_int32[] = { 0 };
 
-  int output_dims[] = { 1, 1 };
+  int output_dims[] = { 3 };
 
-  const golden_output_len = 1;
-  const float golden_output_float[] = { 3 };
-  const int8_t golden_output_int8[] = { 3 };
-  const uint8_t golden_output_uint8[] = { 3 };
+  const int golden_output_len = 3;
+  const float golden_output_float[] = { 0, 1, 2 };;
+  const int8_t golden_output_int8[] = { 0, 1, 2 };;
+  const uint8_t golden_output_uint8[] = { 0, 1, 2 };;
 
-  const int golden_dims_len = 2;
-  const int golden_dims = { 1, 1 };
+  const int golden_dims_len = 1;
+  const int golden_dims[] = { 3 };
 
   tflite::testing::TestTranspose(input_dims, input_float, perm_dims, perm_int32,
                                  output_dims, output_data_float,
@@ -167,6 +180,97 @@ TF_LITE_MICRO_TEST(TransposeBasic1DIdentityShouldSucceed) {
             golden_dims, golden_dims_len);
 
 }
+
+TF_LITE_MICRO_TEST(TransposeBasic2DShouldSucceed) {
+
+  float output_data_float[32];
+  int8_t output_data_int8[32];
+  uint8_t output_data_uint8[32];
+
+  const int input_dims[] = { 3, 2 };
+  const float input_float[] = { 0, 1, 2, 3, 4, 5 };
+  const int8_t input_int8[] = { 0, 1, 2, 3, 4, 5 };
+  const uint8_t input_uint8[] = { 0, 1, 2, 3, 4, 5 };
+
+  const int perm_dims[] = { 2 };
+  const int32_t perm_int32[] = { 1, 0 };
+
+   int output_dims[] = { 2, 3 };
+
+  const int golden_output_len = 6;
+  const float golden_output_float[] = { 0, 2, 4, 1, 3, 5 };
+  const int8_t golden_output_int8[] = { 0, 2, 4, 1, 3, 5 };
+  const uint8_t golden_output_uint8[] = { 0, 2, 4, 1, 3, 5 };
+
+  const int golden_dims_len = 1;
+  const int golden_dims[] = { 2, 3 };
+
+  tflite::testing::TestTranspose(
+            input_dims, input_float, perm_dims, perm_int32,
+            output_dims, output_data_float,
+            golden_output_float, golden_output_len,
+            golden_dims, golden_dims_len);
+
+  tflite::testing::TestTranspose<int8_t, kTfLiteInt8>(
+            input_dims, input_int8, perm_dims, perm_int32,
+            output_dims, output_data_int8,
+            golden_output_int8, golden_output_len,
+            golden_dims, golden_dims_len);
+
+  tflite::testing::TestTranspose<uint8_t, kTfLiteUInt8>(
+            input_dims, input_uint8, perm_dims, perm_int32,
+            output_dims, output_data_uint8,
+            golden_output_uint8, golden_output_len,
+            golden_dims, golden_dims_len);
+
+}
+
+
+TF_LITE_MICRO_TEST(TransposeBasic4DShouldSucceed) {
+
+  float output_data_float[64];
+  int8_t output_data_int8[64];
+  uint8_t output_data_uint8[64];
+
+  const int input_dims[] = { 2, 1, 5, 4 };
+  const float input_float[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
+  const int8_t input_int8[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
+  const uint8_t input_uint8[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
+
+  const int perm_dims[] = { 1 };
+  const int32_t perm_int32[] = { 3, 2, 1, 0 };
+
+   int output_dims[] = { 4 };
+
+  const int golden_output_len = 40;
+
+  const float golden_output_float[] = { 1, 5, 9, 13, 17, 2, 6, 10, 14, 18, 3, 7, 11, 15, 19, 4, 8, 12, 16, 20, 21, 25, 29, 33, 37, 22, 26, 30, 34, 38, 23, 27, 31, 35, 39, 24, 28, 32, 36, 40 };
+  const int8_t golden_output_int8[] = { 1, 5, 9, 13, 17, 2, 6, 10, 14, 18, 3, 7, 11, 15, 19, 4, 8, 12, 16, 20, 21, 25, 29, 33, 37, 22, 26, 30, 34, 38, 23, 27, 31, 35, 39, 24, 28, 32, 36, 40 };
+  const uint8_t golden_output_uint8[] = { 1, 5, 9, 13, 17, 2, 6, 10, 14, 18, 3, 7, 11, 15, 19, 4, 8, 12, 16, 20, 21, 25, 29, 33, 37, 22, 26, 30, 34, 38, 23, 27, 31, 35, 39, 24, 28, 32, 36, 40 };
+
+  const int golden_dims_len = 4;
+  const int golden_dims[] = { 2, 4, 5, 1 };
+
+  tflite::testing::TestTranspose(
+            input_dims, input_float, perm_dims, perm_int32,
+            output_dims, output_data_float,
+            golden_output_float, golden_output_len,
+            golden_dims, golden_dims_len);
+
+  tflite::testing::TestTranspose<int8_t, kTfLiteInt8>(
+            input_dims, input_int8, perm_dims, perm_int32,
+            output_dims, output_data_int8,
+            golden_output_int8, golden_output_len,
+            golden_dims, golden_dims_len);
+
+  tflite::testing::TestTranspose<uint8_t, kTfLiteUInt8>(
+            input_dims, input_uint8, perm_dims, perm_int32,
+            output_dims, output_data_uint8,
+            golden_output_uint8, golden_output_len,
+            golden_dims, golden_dims_len);
+
+}
+
 
 TF_LITE_MICRO_TESTS_END
 
