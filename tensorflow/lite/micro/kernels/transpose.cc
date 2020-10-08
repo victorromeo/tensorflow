@@ -21,6 +21,7 @@ limitations under the License.
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
 #include "tensorflow/lite/micro/memory_helpers.h"
 #include "tensorflow/lite/micro/micro_utils.h"
+#include "tensorflow/lite/kernels/internal/reference/transpose.h"
 
 namespace tflite {
 namespace ops {
@@ -28,13 +29,14 @@ namespace micro {
 namespace transpose {
 
 constexpr int kInputTensor = 0;
+constexpr int kPermTensor = 1;
 constexpr int kOutputTensor = 0;
 
 struct TransposeContext {
     TransposeContext(TfLiteContext* context, TfLiteNode* node) {
-        input = GetInput(context, node, 0);
-        perm = GetInput(context, node, 1);
-        output = GetOutput(context, node, 0);
+        input = GetInput(context, node, kInputTensor);
+        perm = GetInput(context, node, kPermTensor);
+        output = GetOutput(context, node, kOutputTensor);
     }
     const TfLiteTensor* input;
     const TfLiteTensor* perm;
@@ -73,7 +75,38 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
     params.perm[i] = perm_data[i];
   }
 
-  // TODO implement TRANSPOSE op
+  // Helper operation to acquire and convert data types
+#define TF_LITE_TRANSPOSE(scalar)                     \
+  reference_ops::Transpose(params, GetTensorShape(op_context.input), \
+                  GetTensorData<scalar>(op_context.input),  \
+                  GetTensorShape(op_context.output),        \
+                  GetTensorData<scalar>(op_context.output))
+
+  // Transpose really operates at the byte level,
+  // and therefore we only really need to get the 
+  // size of the scalar datatype in bytes.
+  // Using this we can simplify the calls
+  // to only use a small number of data types
+  switch (op_context.input->type) {
+    case kTfLiteFloat32:
+    case kTfLiteInt32:
+      TF_LITE_TRANSPOSE(int32_t);
+      break;
+    case kTfLiteInt8:
+    case kTfLiteUInt8:
+      TF_LITE_TRANSPOSE(int8_t);
+      break;
+    case kTfLiteInt16:
+      TF_LITE_TRANSPOSE(int16_t);
+      break;
+    default:
+      TF_LITE_KERNEL_LOG(context,
+                         "Type %s is currently not supported by Transpose.",
+                         TfLiteTypeGetName(op_context.input->type));
+      return kTfLiteError;
+  }
+
+#undef TF_LITE_TRANSPOSE
 
   return kTfLiteOk;
 }
