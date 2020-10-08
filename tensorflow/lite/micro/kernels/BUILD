@@ -58,6 +58,7 @@ cc_library(
         "strided_slice.cc",
         "sub.cc",
         "tanh.cc",
+        "transpose.cc",
         "unpack.cc",
     ] + select({
         "//conditions:default": [
@@ -645,6 +646,18 @@ tflite_micro_cc_test(
 tflite_micro_cc_test(
     name = "tanh_test",
     srcs = ["tanh_test.cc"],
+    deps = [
+        ":kernel_runner",
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/micro:micro_framework",
+        "//tensorflow/lite/micro:op_resolvers",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+tflite_micro_cc_test(
+    name = "transpose_test",
+    srcs = ["transpose_test.cc"],
     deps = [
         ":kernel_runner",
         "//tensorflow/lite/c:common",
