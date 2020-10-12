@@ -209,8 +209,13 @@
     *   Improvements to Keras preprocessing layers:
         *   TextVectorization can now accept a vocabulary list or file as an
             init arg.
+    *   In `Attention` and `AdditiveAttention` layers, the `call()` method now
+        accepts a `return_attention_scores` argument. When set to
+        True, the layer returns the attention scores as an additional output
+        argument.
+    *   Added `tf.metrics.log_cosh` and `tf.metrics.logcosh` API entrypoints
+        with the same implementation as their `tf.losses` equivalent.
 *   `tf.function` / AutoGraph:
-
     *   Added `experimental_follow_type_hints` argument for `tf.function`. When
         True, the function may use type annotations to optimize the tracing
         performance.
@@ -233,21 +238,24 @@
 
 *   `tf.lite`:
 
-    *   `DynamicBuffer::AddJoinedString()` will now add a separator if the first
-        string to be joined is empty.
     *   `TFLiteConverter`:
         *   Support optional flags `inference_input_type` and
             `inference_output_type` for full integer quantized models. This
             allows users to modify the model input and output type to integer
             types (`tf.int8`, `tf.uint8`) instead of defaulting to float type
             (`tf.float32`).
-    *   Deprecate `Interpreter::UseNNAPI(bool)` C++ API
-        *   Prefer using `NnApiDelegate()` and related delegate configuration
-            methods directly.
-    *   Add NNAPI Delegation support for requantization use cases by converting
-        the operation into a dequantize-quantize pair.
     *   TFLite Profiler for Android is available. See the detailed
         [guide](https://www.tensorflow.org/lite/performance/measurement#trace_tensorflow_lite_internals_in_android).
+    * NNAPI
+        *   Added NNAPI Delegation support for requantization use cases by
+            converting the operation into a dequantize-quantize pair.
+        *   Removed deprecated `Interpreter.setUseNNAPI(boolean)` Java API.
+            *   Use `Interpreter.Options.setUseNNAPI` instead.
+        *   Deprecate `Interpreter::UseNNAPI(bool)` C++ API.
+            *   Use `NnApiDelegate()` and related delegate configuration methods
+                directly.
+    *   `DynamicBuffer::AddJoinedString()` will now add a separator if the first
+        string to be joined is empty.
     *   <ADD RELEASE NOTES HERE>
 
 *   `tf.random`:
@@ -296,16 +304,21 @@
 
     *   `tf.debugging.assert_shapes()` now works on `SparseTensor`s (#36268).
 
-*    `TensorRT`
-    *    Add parameter allow_mixed_precision_on_unconverted_ops to
-         TrtConversionParams.
+*   `tf.print`:
+
+    *   Bug fix in `tf.print()` with `OrderedDict` where if an `OrderedDict`
+        didn't have the keys sorted, the keys and values were not being printed
+        in accordance with their correct mapping.
 
 *   Other:
 
     *   We have replaced uses of "whitelist" and "blacklist" with "allowlist"
         and "denylist" where possible. Please see
         https://developers.google.com/style/word-list#blacklist for more
-        context. <ADD RELEASE NOTES HERE>
+        context.
+    *   Add `tf.config.experimental.mlir_bridge_rollout` which will help us
+        rollout the new MLIR TPU bridge.
+    *   <ADD RELEASE NOTES HERE>
 
 ## Thanks to our Contributors
 
