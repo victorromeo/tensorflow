@@ -402,6 +402,17 @@ TfLiteStatus ParseSvdf(const Operator* op, BuiltinOperator,
   return kTfLiteOk;
 }
 
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseTranspose(const Operator* op, BuiltinOperator op_type,
+                          ErrorReporter* error_reporter,
+                          BuiltinDataAllocator* allocator,
+                          void** builtin_data) {
+  return kTfLiteOk;
+}
+
+
 TfLiteStatus ParseOpData(const Operator* op, BuiltinOperator op_type,
                          ErrorReporter* error_reporter,
                          BuiltinDataAllocator* allocator, void** builtin_data) {
@@ -464,6 +475,10 @@ TfLiteStatus ParseOpData(const Operator* op, BuiltinOperator op_type,
 
     case BuiltinOperator_SVDF: {
       return ParseSvdf(op, op_type, error_reporter, allocator, builtin_data);
+    }
+
+    case BuiltinOperator_TRANSPOSE: {
+      return ParseTranspose(op, op_type, error_reporter, allocator, builtin_data);
     }
 
     case BuiltinOperator_CAST: {
@@ -1065,7 +1080,6 @@ TfLiteStatus ParseOpData(const Operator* op, BuiltinOperator op_type,
     case BuiltinOperator_TANH:
     case BuiltinOperator_TILE:
     case BuiltinOperator_TOPK_V2:
-    case BuiltinOperator_TRANSPOSE:
     case BuiltinOperator_POW:
     case BuiltinOperator_LOGICAL_OR:
     case BuiltinOperator_LOGICAL_AND:

@@ -53,6 +53,7 @@ cc_library(
         "strided_slice.cc",
         "sub.cc",
         "tanh.cc",
+        "transpose.cc",
         "unpack.cc",
     ] + select({
         "//conditions:default": [
@@ -73,7 +74,10 @@ cc_library(
             "xtensa_hifimini_legacy/svdf.cc",
         ],
     }),
-    hdrs = ["micro_ops.h"],
+    hdrs = [
+        "micro_ops.h",
+        "kernel_utils.h",
+    ],
     # TODO(b/153609488): enable embedded build once we can properly support it.
     #build_for_embedded = True,
     copts = micro_copts(),
@@ -147,9 +151,13 @@ cc_library(
         "sub.cc",
         "svdf.cc",
         "tanh.cc",
+        "transpose.cc",
         "unpack.cc",
     ],
-    hdrs = ["micro_ops.h"],
+    hdrs = [
+        "micro_ops.h"
+        "kernel_utils.h",
+    ],
     copts = micro_copts(),
     visibility = [
         # Needed for micro:portable_optimized_ops_resolver but visibility can not be
@@ -648,6 +656,17 @@ tflite_micro_cc_test(
 tflite_micro_cc_test(
     name = "tanh_test",
     srcs = ["tanh_test.cc"],
+    deps = [
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/micro:micro_framework",
+        "//tensorflow/lite/micro:op_resolvers",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+tflite_micro_cc_test(
+    name = "transpose_test",
+    srcs = ["transpose_test.cc"],
     deps = [
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/micro:micro_framework",

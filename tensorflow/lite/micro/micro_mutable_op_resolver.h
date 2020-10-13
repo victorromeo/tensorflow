@@ -457,6 +457,11 @@ class MicroMutableOpResolver : public MicroOpResolver {
                       *tflite::ops::micro::Register_TANH(), ParseOpData);
   }
 
+  TfLiteStatus AddTranspose() {    
+    return AddBuiltin(BuiltinOperator_TRANSPOSE,
+                      *tflite::ops::micro::Register_TRANSPOSE(), ParseTranspose);
+  }
+
   TfLiteStatus AddUnpack() {
     // TODO(b/149408647): Replace ParseOpData with the operator specific parse
     // function.
