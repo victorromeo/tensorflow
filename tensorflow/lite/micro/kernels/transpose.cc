@@ -112,8 +112,8 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 
 } // namespace transpose
 
-TfLiteRegistration Register_TRANSPOSE() {
-  return {/*init=*/nullptr,
+TfLiteRegistration* Register_TRANSPOSE() {
+  static TfLiteRegistration r = {/*init=*/nullptr,
           /*free=*/nullptr,
           /*prepare=*/transpose::Prepare,
           /*invoke=*/transpose::Eval,
@@ -121,6 +121,8 @@ TfLiteRegistration Register_TRANSPOSE() {
           /*builtin_code=*/0,
           /*custom_name=*/nullptr,
           /*version=*/2};
+
+  return &r;
 }
 
 } // namespace micro
