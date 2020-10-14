@@ -111,7 +111,8 @@ TfLiteStatus ParseSvdf(const Operator* op, BuiltinOperator op_type,
                        ErrorReporter* error_reporter,
                        BuiltinDataAllocator* allocator, void** builtin_data);
 
-TfLiteStatus ParseTranspose(const Operator* op, ErrorReporter* error_reporter,
+TfLiteStatus ParseTranspose(const Operator* op, BuiltinOperator op_type,
+                       ErrorReporter* error_reporter,
                        BuiltinDataAllocator* allocator, void** builtin_data);
 
 }  // namespace tflite
