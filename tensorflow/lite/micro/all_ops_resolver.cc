@@ -77,6 +77,7 @@ AllOpsResolver::AllOpsResolver() {
   AddSub();
   AddSvdf();
   AddTanh();
+  AddTranspose();
   AddUnpack();
 
   // TODO(b/159644355): Figure out if custom Ops belong in AllOpsResolver.
